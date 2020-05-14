@@ -17,9 +17,19 @@ fsPromises.readFile('example.csv')
     });
   })
   .then((parsed) => {
-    console.log(parsed);
     const board = Board.fromArray(parsed);
-    console.log(board);
+    const solved = board.solve();
+
+    let res = '';
+
+    for (const cell of solved.values()) {
+      res += ` ${cell.value ? cell.value : '_'} `;
+      if (cell.column === 9) {
+        res += '\n';
+      }
+    }
+
+    console.log(res);
   })
   .catch((err) => {
     console.error(err);

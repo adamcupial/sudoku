@@ -3,10 +3,12 @@ import { Cell } from './cell';
 export class Board {
   cells: Map<string, Cell>;
   possibleCellValues: Set<number>;
+  backup: Map<string, Cell>|null;
 
   constructor(cells:Cell[]=[]) {
     this.cells = new Map();
     this.possibleCellValues = new Set([1,2,3,4,5,6,7,8,9]);
+    this.backup = null;
 
     for (const cell of cells) {
       this.addCell(cell);
@@ -56,7 +58,14 @@ export class Board {
   }
 
   getPossibleValuesForCell(cell: Cell): number[] {
-    return [1];
+    const rowMissing = this.getMissingValuesForRow(cell.row);
+    const colMissing = this.getMissingValuesForColumn(cell.column);
+    const squareMissing = this.getMissingValuesForSquare(cell.square);
+
+    return [...this.possibleCellValues]
+      .filter(val => rowMissing.indexOf(val) !== -1)
+      .filter(val => colMissing.indexOf(val) !== -1)
+      .filter(val => squareMissing.indexOf(val) !== -1);
   }
 
   private getMissingValuesForPiece(num: number, piece: 'row'|'column'|'square') {
@@ -82,20 +91,47 @@ export class Board {
     return this.getMissingValuesForPiece(columnNumber, 'column')
   }
 
-  solve() {
+  solve(): Map<string, Cell> {
     let easySolves = 0;
+
     do {
       easySolves = 0;
 
       for (const cell of this.getUnsolved()) {
         const solutions = this.getPossibleValuesForCell(cell);
+
         if (solutions.length === 1) {
           cell.value = solutions[0];
           this.updateCell(cell);
+          easySolves += 1;
         } else if (solutions.length === 0) {
-          throw new Error('Something went very wrong');
+          if (this.backup) {
+            this.cells = new Map(this.backup);
+            this.backup = null;
+            break;
+          } else {
+            throw new Error(`Something went very wrong ${cell.toString()}`);
+          }
         }
       }
     } while (easySolves > 0);
+
+    for (const cell of this.getUnsolved()) {
+      if (this.backup === null) {
+        this.backup = new Map();
+        for (const [key, cell] of this.cells.entries()) {
+          this.backup.set(key, new Cell(cell.row, cell.column, cell.value));
+        }
+      }
+
+      const solutions = this.getPossibleValuesForCell(cell);
+      const chosen = solutions[Math.floor(Math.random() * solutions.length)];
+      cell.value = chosen;
+      this.updateCell(cell);
+      return this.solve();
+    }
+
+
+    return this.cells;
   }
 }
